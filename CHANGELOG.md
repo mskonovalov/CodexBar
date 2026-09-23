@@ -4,6 +4,8 @@
 
 ### Added
 
+- Claude: optionally read OAuth credentials through Apple's `security` tool so Claude-owned Keychain rotations retain
+  access without falling back to a prompting Security.framework read (#3798).
 - Doubao: save labeled Ark API-key accounts in the shared account editor and select them in the app or CLI without inheriting another account's credentials (#3192).
 - Zed: opt in to browser-session billing for token spend, limits, and remaining budget while keeping the editor login as the default (#3172). Thanks @shuuul!
 - Kimi: save labeled web accounts in the shared account editor, with isolated cookies and region-aware app and CLI usage (including Linux) while preserving source preferences (#2937). Thanks @jky1314!

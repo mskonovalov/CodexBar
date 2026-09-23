@@ -165,6 +165,8 @@ Runs out tokens remain hidden until 3% of their window has elapsed.
 - If no providers are selected for Overview, the Overview tab is hidden.
 - Providers → Claude: “Avoid Keychain prompts” selects the Security.framework reader's `Never prompt` policy.
 - The lower-level “Keychain prompt policy” picker remains visible as the source of truth for Claude OAuth prompts.
+- Providers → Claude: “Use Apple security tool for Claude credentials” explicitly opts into the bounded
+  `/usr/bin/security` reader. It never falls back to Security.framework after a failed read.
 
 ## Widgets (high level)
 - Widgets render shared usage snapshots for the supported widget families and

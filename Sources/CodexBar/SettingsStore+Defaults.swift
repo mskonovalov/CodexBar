@@ -747,12 +747,31 @@ extension SettingsStore {
                 return .securityFramework
             }
             let strategy = ClaudeOAuthKeychainReadStrategy(rawValue: raw) ?? .securityFramework
-            return strategy == .securityCLIExperimental ? .securityFramework : strategy
+            if strategy == .securityCLIExperimental,
+               !self.defaultsState.claudeOAuthSecurityCLIReaderOptIn
+            {
+                return .securityFramework
+            }
+            return strategy
         }
         set {
             self.defaultsState.claudeOAuthKeychainReadStrategyRaw = newValue.rawValue
             self.userDefaults.set(newValue.rawValue, forKey: "claudeOAuthKeychainReadStrategy")
             self.noteBackgroundWorkSettingsChanged()
+        }
+    }
+
+    var claudeOAuthSecurityCLIReaderEnabled: Bool {
+        get {
+            self.defaultsState.claudeOAuthSecurityCLIReaderOptIn
+                && self.claudeOAuthKeychainReadStrategy == .securityCLIExperimental
+        }
+        set {
+            self.defaultsState.claudeOAuthSecurityCLIReaderOptIn = newValue
+            self.userDefaults.set(
+                newValue,
+                forKey: ClaudeOAuthKeychainReadStrategyPreference.securityCLIOptInUserDefaultsKey)
+            self.claudeOAuthKeychainReadStrategy = newValue ? .securityCLIExperimental : .securityFramework
         }
     }
 
@@ -783,7 +802,7 @@ extension SettingsStore {
     var claudeOAuthPromptFreeCredentialsEnabled: Bool {
         get { self.claudeOAuthKeychainPromptMode == .never }
         set {
-            self.claudeOAuthKeychainReadStrategy = .securityFramework
+            self.claudeOAuthSecurityCLIReaderEnabled = false
             if newValue {
                 self.claudeOAuthKeychainPromptMode = .never
             } else if self.claudeOAuthKeychainPromptMode == .never {

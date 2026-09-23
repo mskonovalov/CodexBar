@@ -586,20 +586,23 @@ struct SettingsStoreCoverageTests {
     }
 
     @Test
-    func `claude keychain read strategy persists across store reload`() throws {
+    func `claude Apple security tool reader opt in persists across store reload`() throws {
         let suite = "SettingsStoreCoverageTests-claude-keychain-read-strategy"
         let defaults = try #require(UserDefaults(suiteName: suite))
         defaults.removePersistentDomain(forName: suite)
         let configStore = testConfigStore(suiteName: suite)
 
         let first = Self.makeSettingsStore(userDefaults: defaults, configStore: configStore)
-        first.claudeOAuthKeychainReadStrategy = .securityFramework
+        first.claudeOAuthSecurityCLIReaderEnabled = true
         #expect(
             defaults.string(forKey: "claudeOAuthKeychainReadStrategy")
-                == ClaudeOAuthKeychainReadStrategy.securityFramework.rawValue)
+                == ClaudeOAuthKeychainReadStrategy.securityCLIExperimental.rawValue)
+        #expect(defaults.bool(
+            forKey: ClaudeOAuthKeychainReadStrategyPreference.securityCLIOptInUserDefaultsKey))
 
         let second = Self.makeSettingsStore(userDefaults: defaults, configStore: configStore)
-        #expect(second.claudeOAuthKeychainReadStrategy == .securityFramework)
+        #expect(second.claudeOAuthSecurityCLIReaderEnabled)
+        #expect(second.claudeOAuthKeychainReadStrategy == .securityCLIExperimental)
     }
 
     @Test
@@ -646,6 +649,29 @@ struct SettingsStoreCoverageTests {
     }
 
     @Test
+    func `claude explicit security CLI opt in preserves reader and prompt policy`() throws {
+        let suite = "SettingsStoreCoverageTests-claude-keychain-explicit-security-cli-opt-in"
+        let defaults = try #require(UserDefaults(suiteName: suite))
+        defaults.removePersistentDomain(forName: suite)
+        defaults.set(
+            ClaudeOAuthKeychainReadStrategy.securityCLIExperimental.rawValue,
+            forKey: "claudeOAuthKeychainReadStrategy")
+        defaults.set(
+            true,
+            forKey: ClaudeOAuthKeychainReadStrategyPreference.securityCLIOptInUserDefaultsKey)
+        defaults.set(
+            ClaudeOAuthKeychainPromptMode.always.rawValue,
+            forKey: "claudeOAuthKeychainPromptMode")
+        let configStore = testConfigStore(suiteName: suite)
+
+        let settings = Self.makeSettingsStore(userDefaults: defaults, configStore: configStore)
+
+        #expect(settings.claudeOAuthSecurityCLIReaderEnabled)
+        #expect(settings.claudeOAuthKeychainReadStrategy == .securityCLIExperimental)
+        #expect(settings.claudeOAuthKeychainPromptMode == .always)
+    }
+
+    @Test
     func `claude keychain read strategy invalid raw falls back to security framework`() throws {
         let suite = "SettingsStoreCoverageTests-claude-keychain-read-strategy-invalid"
         let defaults = try #require(UserDefaults(suiteName: suite))
@@ -662,7 +688,9 @@ struct SettingsStoreCoverageTests {
         let settings = Self.makeSettingsStore()
         #expect(settings.claudeOAuthPromptFreeCredentialsEnabled == false)
 
+        settings.claudeOAuthSecurityCLIReaderEnabled = true
         settings.claudeOAuthPromptFreeCredentialsEnabled = true
+        #expect(!settings.claudeOAuthSecurityCLIReaderEnabled)
         #expect(settings.claudeOAuthKeychainReadStrategy == .securityFramework)
         #expect(settings.claudeOAuthKeychainPromptMode == .never)
 

@@ -574,7 +574,11 @@ extension SettingsStore {
         let randomBlinkEnabled = userDefaults.object(forKey: "randomBlinkEnabled") as? Bool ?? false
         let confettiOnReset = Self.loadConfettiOnResetDefaults(userDefaults: userDefaults)
         let menuBarShowsHighestUsage = userDefaults.object(forKey: "menuBarShowsHighestUsage") as? Bool ?? false
-        let claudeOAuthKeychainReadStrategyRaw = Self.loadClaudeOAuthKeychainReadStrategyRaw(userDefaults: userDefaults)
+        let claudeOAuthSecurityCLIReaderOptIn = userDefaults.bool(
+            forKey: ClaudeOAuthKeychainReadStrategyPreference.securityCLIOptInUserDefaultsKey)
+        let claudeOAuthKeychainReadStrategyRaw = Self.loadClaudeOAuthKeychainReadStrategyRaw(
+            userDefaults: userDefaults,
+            securityCLIReaderOptIn: claudeOAuthSecurityCLIReaderOptIn)
         let claudeOAuthKeychainPromptModeRaw = userDefaults.string(forKey: "claudeOAuthKeychainPromptMode")
         // Explicit consent for reading Claude Code's Keychain item (#2634). Default OFF; never enabled silently.
         let claudeOAuthDirectKeychainReadAllowed = userDefaults.object(
@@ -717,6 +721,7 @@ extension SettingsStore {
             menuBarShowsHighestUsage: menuBarShowsHighestUsage,
             claudeOAuthKeychainPromptModeRaw: claudeOAuthKeychainPromptModeRaw,
             claudeOAuthKeychainReadStrategyRaw: claudeOAuthKeychainReadStrategyRaw,
+            claudeOAuthSecurityCLIReaderOptIn: claudeOAuthSecurityCLIReaderOptIn,
             claudeOAuthDirectKeychainReadAllowed: claudeOAuthDirectKeychainReadAllowed,
             claudeWebExtrasEnabledRaw: claudeWebExtrasEnabledRaw,
             showOptionalCreditsAndExtraUsage: showOptionalCreditsAndExtraUsage,
@@ -828,11 +833,14 @@ extension SettingsStore {
         return migratedStyle
     }
 
-    private static func loadClaudeOAuthKeychainReadStrategyRaw(userDefaults: UserDefaults) -> String? {
+    private static func loadClaudeOAuthKeychainReadStrategyRaw(
+        userDefaults: UserDefaults,
+        securityCLIReaderOptIn: Bool) -> String?
+    {
         let key = "claudeOAuthKeychainReadStrategy"
         guard let raw = userDefaults.string(forKey: key) else { return nil }
         guard let strategy = ClaudeOAuthKeychainReadStrategy(rawValue: raw) else { return raw }
-        guard strategy == .securityCLIExperimental else { return raw }
+        guard strategy == .securityCLIExperimental, !securityCLIReaderOptIn else { return raw }
 
         let migrated = ClaudeOAuthKeychainReadStrategy.securityFramework.rawValue
         userDefaults.set(migrated, forKey: key)

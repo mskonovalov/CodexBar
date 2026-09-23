@@ -7,6 +7,7 @@ public enum ClaudeOAuthKeychainReadStrategy: String, Sendable, Codable, CaseIter
 
 public enum ClaudeOAuthKeychainReadStrategyPreference {
     private static let userDefaultsKey = "claudeOAuthKeychainReadStrategy"
+    public static let securityCLIOptInUserDefaultsKey = "claudeOAuthSecurityCLIReaderOptIn"
 
     #if DEBUG
     @TaskLocal private static var taskOverride: ClaudeOAuthKeychainReadStrategy?
@@ -18,7 +19,12 @@ public enum ClaudeOAuthKeychainReadStrategyPreference {
         #endif
         if let raw = userDefaults.string(forKey: self.userDefaultsKey) {
             let strategy = ClaudeOAuthKeychainReadStrategy(rawValue: raw) ?? .securityFramework
-            return strategy == .securityCLIExperimental ? .securityFramework : strategy
+            if strategy == .securityCLIExperimental,
+               !userDefaults.bool(forKey: self.securityCLIOptInUserDefaultsKey)
+            {
+                return .securityFramework
+            }
+            return strategy
         }
         return .securityFramework
     }

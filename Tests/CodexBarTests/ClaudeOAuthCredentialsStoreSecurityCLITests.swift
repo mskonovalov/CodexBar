@@ -132,7 +132,7 @@ struct ClaudeOAuthCredentialsStoreSecurityCLITests {
     }
 
     @Test
-    func `experimental reader falls back when security CLI throws`() throws {
+    func `experimental reader fails closed when security CLI throws`() throws {
         let service = "com.steipete.codexbar.cache.tests.\(UUID().uuidString)"
         try KeychainCacheStore.withServiceOverrideForTesting(service) {
             try KeychainAccessGate.withTaskOverrideForTesting(false) {
@@ -152,22 +152,15 @@ struct ClaudeOAuthCredentialsStoreSecurityCLITests {
                 let fileURL = tempDir.appendingPathComponent("credentials.json")
 
                 try ClaudeOAuthCredentialsStore.withCredentialsURLOverrideForTesting(fileURL) {
-                    let fallbackData = self.makeCredentialsData(
-                        accessToken: "fallback-token",
-                        expiresAt: Date(timeIntervalSinceNow: 3600),
-                        refreshToken: "fallback-refresh")
-
-                    let creds = try ClaudeOAuthKeychainReadStrategyPreference.withTaskOverrideForTesting(
-                        .securityCLIExperimental,
-                        operation: {
-                            try ClaudeOAuthKeychainPromptPreference.withTaskOverrideForTesting(
-                                .onlyOnUserAction,
-                                operation: {
-                                    try ProviderInteractionContext.$current.withValue(.userInitiated) {
-                                        try ClaudeOAuthCredentialsStore.withClaudeKeychainOverridesForTesting(
-                                            data: fallbackData,
-                                            fingerprint: nil)
-                                        {
+                    var threwNotFound = false
+                    do {
+                        _ = try ClaudeOAuthKeychainReadStrategyPreference.withTaskOverrideForTesting(
+                            .securityCLIExperimental,
+                            operation: {
+                                try ClaudeOAuthKeychainPromptPreference.withTaskOverrideForTesting(
+                                    .always,
+                                    operation: {
+                                        try ProviderInteractionContext.$current.withValue(.userInitiated) {
                                             try ClaudeOAuthCredentialsStore.withSecurityCLIReadOverrideForTesting(
                                                 .timedOut)
                                             {
@@ -176,18 +169,24 @@ struct ClaudeOAuthCredentialsStoreSecurityCLITests {
                                                     allowKeychainPrompt: false)
                                             }
                                         }
-                                    }
-                                })
-                        })
+                                    })
+                            })
+                    } catch let error as ClaudeOAuthCredentialsError {
+                        if case .notFound = error {
+                            threwNotFound = true
+                        } else {
+                            throw error
+                        }
+                    }
 
-                    #expect(creds.accessToken == "fallback-token")
+                    #expect(threwNotFound)
                 }
             }
         }
     }
 
     @Test
-    func `experimental reader falls back when security CLI output malformed`() throws {
+    func `experimental reader fails closed when security CLI output malformed`() throws {
         let service = "com.steipete.codexbar.cache.tests.\(UUID().uuidString)"
         try KeychainCacheStore.withServiceOverrideForTesting(service) {
             try KeychainAccessGate.withTaskOverrideForTesting(false) {
@@ -207,21 +206,15 @@ struct ClaudeOAuthCredentialsStoreSecurityCLITests {
                 let fileURL = tempDir.appendingPathComponent("credentials.json")
 
                 try ClaudeOAuthCredentialsStore.withCredentialsURLOverrideForTesting(fileURL) {
-                    let fallbackData = self.makeCredentialsData(
-                        accessToken: "fallback-token",
-                        expiresAt: Date(timeIntervalSinceNow: 3600))
-
-                    let creds = try ClaudeOAuthKeychainReadStrategyPreference.withTaskOverrideForTesting(
-                        .securityCLIExperimental,
-                        operation: {
-                            try ClaudeOAuthKeychainPromptPreference.withTaskOverrideForTesting(
-                                .onlyOnUserAction,
-                                operation: {
-                                    try ProviderInteractionContext.$current.withValue(.userInitiated) {
-                                        try ClaudeOAuthCredentialsStore.withClaudeKeychainOverridesForTesting(
-                                            data: fallbackData,
-                                            fingerprint: nil)
-                                        {
+                    var threwNotFound = false
+                    do {
+                        _ = try ClaudeOAuthKeychainReadStrategyPreference.withTaskOverrideForTesting(
+                            .securityCLIExperimental,
+                            operation: {
+                                try ClaudeOAuthKeychainPromptPreference.withTaskOverrideForTesting(
+                                    .always,
+                                    operation: {
+                                        try ProviderInteractionContext.$current.withValue(.userInitiated) {
                                             try ClaudeOAuthCredentialsStore.withSecurityCLIReadOverrideForTesting(
                                                 .data(Data("not-json".utf8)))
                                             {
@@ -230,11 +223,17 @@ struct ClaudeOAuthCredentialsStoreSecurityCLITests {
                                                     allowKeychainPrompt: false)
                                             }
                                         }
-                                    }
-                                })
-                        })
+                                    })
+                            })
+                    } catch let error as ClaudeOAuthCredentialsError {
+                        if case .notFound = error {
+                            threwNotFound = true
+                        } else {
+                            throw error
+                        }
+                    }
 
-                    #expect(creds.accessToken == "fallback-token")
+                    #expect(threwNotFound)
                 }
             }
         }
@@ -309,11 +308,7 @@ struct ClaudeOAuthCredentialsStoreSecurityCLITests {
     }
 
     @Test
-    func `experimental reader has claude keychain credentials without prompt falls back when security CLI fails`() {
-        let fallbackData = self.makeCredentialsData(
-            accessToken: "fallback-available",
-            expiresAt: Date(timeIntervalSinceNow: 3600))
-
+    func `experimental reader credential check fails closed when security CLI fails`() {
         let hasCredentials = ClaudeOAuthKeychainReadStrategyPreference.withTaskOverrideForTesting(
             .securityCLIExperimental,
             operation: {
@@ -321,21 +316,16 @@ struct ClaudeOAuthCredentialsStoreSecurityCLITests {
                     .always,
                     operation: {
                         ProviderInteractionContext.$current.withValue(.userInitiated) {
-                            ClaudeOAuthCredentialsStore.withClaudeKeychainOverridesForTesting(
-                                data: fallbackData,
-                                fingerprint: nil)
+                            ClaudeOAuthCredentialsStore.withSecurityCLIReadOverrideForTesting(
+                                .nonZeroExit)
                             {
-                                ClaudeOAuthCredentialsStore.withSecurityCLIReadOverrideForTesting(
-                                    .nonZeroExit)
-                                {
-                                    ClaudeOAuthCredentialsStore.hasClaudeKeychainCredentialsWithoutPrompt()
-                                }
+                                ClaudeOAuthCredentialsStore.hasClaudeKeychainCredentialsWithoutPrompt()
                             }
                         }
                     })
             })
 
-        #expect(hasCredentials == true)
+        #expect(hasCredentials == false)
     }
 
     @Test

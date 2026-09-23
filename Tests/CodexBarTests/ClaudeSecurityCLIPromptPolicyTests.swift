@@ -61,5 +61,14 @@ struct ClaudeSecurityCLIPromptPolicyTests {
         let allowed = mode == .always || (mode == .onlyOnUserAction && interaction == .userInitiated)
         #expect(reads.value == (allowed ? 1 : 0))
     }
+
+    @Test
+    func `security CLI reader never permits Security framework fallback`() {
+        let fallbackMode = ClaudeOAuthKeychainPromptPreference.securityFrameworkFallbackMode(
+            userDefaults: nil,
+            readStrategy: .securityCLIExperimental)
+
+        #expect(fallbackMode == .never)
+    }
 }
 #endif

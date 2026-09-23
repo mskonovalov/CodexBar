@@ -587,6 +587,38 @@ struct ProviderSettingsDescriptorTests {
     }
 
     @Test
+    func `claude Apple security tool reader requires direct credential consent`() throws {
+        let fixture = try self.makeSettingsFixture(
+            suite: "ProviderSettingsDescriptorTests-claude-security-cli-reader")
+        fixture.settings.debugDisableKeychainAccess = false
+        fixture.settings.claudeOAuthDirectKeychainReadAllowed = false
+        let context = fixture.settingsContext(provider: .claude)
+
+        let toggles = ClaudeProviderImplementation().settingsToggles(context: context)
+        let securityCLIToggle = try #require(toggles.first {
+            $0.id == "claude-oauth-security-cli-reader"
+        })
+        let promptFreeToggle = try #require(toggles.first {
+            $0.id == "claude-oauth-prompt-free-credentials"
+        })
+
+        #expect(securityCLIToggle.isEnabled?() == false)
+        securityCLIToggle.binding.wrappedValue = true
+        #expect(!fixture.settings.claudeOAuthSecurityCLIReaderEnabled)
+
+        fixture.settings.claudeOAuthDirectKeychainReadAllowed = true
+        #expect(securityCLIToggle.isEnabled?() == true)
+        securityCLIToggle.binding.wrappedValue = true
+        #expect(fixture.settings.claudeOAuthSecurityCLIReaderEnabled)
+        #expect(promptFreeToggle.isVisible?() == false)
+
+        let pickers = ClaudeProviderImplementation().settingsPickers(context: context)
+        let keychainPicker = try #require(pickers.first { $0.id == "claude-keychain-prompt-policy" })
+        #expect(keychainPicker.dynamicSubtitle?().contains("/usr/bin/security") == true)
+        #expect(keychainPicker.dynamicSubtitle?().contains("fallback is disabled") == true)
+    }
+
+    @Test
     func `claude avoid keychain prompts toggle is disabled when global keychain disabled`() throws {
         let fixture = try self.makeSettingsFixture(suite: "ProviderSettingsDescriptorTests-claude-prompt-free-disabled")
         fixture.settings.debugDisableKeychainAccess = true

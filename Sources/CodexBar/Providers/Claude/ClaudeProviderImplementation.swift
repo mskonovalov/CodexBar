@@ -85,6 +85,15 @@ struct ClaudeProviderImplementation: ProviderImplementation {
                 context.settings.claudeOAuthPromptFreeCredentialsEnabled = enabled
             })
 
+        let securityCLIReaderBinding = Binding(
+            get: { context.settings.claudeOAuthSecurityCLIReaderEnabled },
+            set: { enabled in
+                guard !context.settings.debugDisableKeychainAccess,
+                      context.settings.claudeOAuthDirectKeychainReadAllowed
+                else { return }
+                context.settings.claudeOAuthSecurityCLIReaderEnabled = enabled
+            })
+
         let claudeSwapBinding = context.binding(\.claudeSwapEnabled)
         let claudeSwapShowSingleAccountBinding = context.binding(\.claudeSwapShowSingleAccount)
 
@@ -117,13 +126,34 @@ struct ClaudeProviderImplementation: ProviderImplementation {
                 onAppDidBecomeActive: nil,
                 onAppearWhenEnabled: nil),
             ProviderSettingsToggleDescriptor(
+                id: "claude-oauth-security-cli-reader",
+                title: "Use Apple security tool for Claude credentials",
+                subtitle: [
+                    "Experimental: reads through /usr/bin/security so Claude credential rotations retain access.",
+                    "Set the prompt policy to Always allow prompts for background refreshes.",
+                    "Failed reads never fall back to a prompting reader.",
+                ].joined(separator: " "),
+                binding: securityCLIReaderBinding,
+                statusText: nil,
+                actions: [],
+                isVisible: nil,
+                isEnabled: {
+                    !context.settings.debugDisableKeychainAccess
+                        && context.settings.claudeOAuthDirectKeychainReadAllowed
+                },
+                onChange: nil,
+                onAppDidBecomeActive: nil,
+                onAppearWhenEnabled: nil),
+            ProviderSettingsToggleDescriptor(
                 id: "claude-oauth-prompt-free-credentials",
                 title: "Avoid Keychain prompts",
                 subtitle: subtitle,
                 binding: promptFreeBinding,
                 statusText: nil,
                 actions: [],
-                isVisible: nil,
+                isVisible: {
+                    context.settings.claudeOAuthKeychainReadStrategy == .securityFramework
+                },
                 isEnabled: { !context.settings.debugDisableKeychainAccess },
                 onChange: nil,
                 onAppDidBecomeActive: nil,
@@ -200,6 +230,10 @@ struct ClaudeProviderImplementation: ProviderImplementation {
         let keychainPromptPolicySubtitle: () -> String? = {
             if context.settings.debugDisableKeychainAccess {
                 return "Global Keychain access is disabled in Advanced, so this setting is currently inactive."
+            }
+            if context.settings.claudeOAuthKeychainReadStrategy == .securityCLIExperimental {
+                return "Controls when /usr/bin/security may read Claude credentials. " +
+                    "Security.framework fallback is disabled."
             }
             return "Choosing \"Never prompt\" can make OAuth unavailable; use Web/CLI when needed."
         }

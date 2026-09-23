@@ -97,7 +97,7 @@ public enum ClaudeOAuthKeychainPromptPreference {
         -> ClaudeOAuthKeychainPromptMode
     {
         if readStrategy == .securityCLIExperimental {
-            return self.storedMode(userDefaults: userDefaults)
+            return .never
         }
         return self.effectiveMode(userDefaults: userDefaults, readStrategy: readStrategy)
     }

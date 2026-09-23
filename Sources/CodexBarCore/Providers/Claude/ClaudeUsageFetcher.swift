@@ -229,8 +229,8 @@ public struct ClaudeUsageFetcher: ClaudeUsageFetching, Sendable {
             isApplicable: true,
             interaction: ProviderInteractionContext.current)
 
-        // User actions should be able to immediately retry a Security.framework fallback repair after a background
-        // cooldown was recorded, even when /usr/bin/security is the primary reader.
+        // User actions should be able to immediately retry a permitted Security.framework repair after a background
+        // cooldown was recorded.
         if policy.interaction == .userInitiated {
             if ClaudeOAuthKeychainAccessGate.clearDenied() {
                 Self.log.info("Claude OAuth keychain cooldown cleared by user action")

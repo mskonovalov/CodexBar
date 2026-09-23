@@ -2162,7 +2162,7 @@ public enum ClaudeOAuthCredentialsStore {
             return data
         }
 
-        // For experimental strategy, apply the stored policy before no-UI Security.framework fallback probes.
+        // The experimental reader fails closed instead of consulting Security.framework after a CLI miss.
         guard self.shouldAllowClaudeCodeKeychainAccess(mode: fallbackPromptMode)
         else { return nil }
 

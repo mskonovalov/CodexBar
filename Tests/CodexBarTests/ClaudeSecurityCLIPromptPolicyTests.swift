@@ -5,6 +5,26 @@ import Testing
 @testable import CodexBarCore
 
 struct ClaudeSecurityCLIPromptPolicyTests {
+    @Test
+    func `security CLI preference requires explicit opt in`() throws {
+        let suite = "ClaudeSecurityCLIPromptPolicyTests-explicit-opt-in"
+        let defaults = try #require(UserDefaults(suiteName: suite))
+        defaults.removePersistentDomain(forName: suite)
+        defer { defaults.removePersistentDomain(forName: suite) }
+        defaults.set(
+            ClaudeOAuthKeychainReadStrategy.securityCLIExperimental.rawValue,
+            forKey: "claudeOAuthKeychainReadStrategy")
+
+        #expect(ClaudeOAuthKeychainReadStrategyPreference.current(userDefaults: defaults) == .securityFramework)
+
+        defaults.set(
+            true,
+            forKey: ClaudeOAuthKeychainReadStrategyPreference.securityCLIOptInUserDefaultsKey)
+
+        #expect(
+            ClaudeOAuthKeychainReadStrategyPreference.current(userDefaults: defaults) == .securityCLIExperimental)
+    }
+
     @Test(arguments: [
         errSecSuccess,
         errSecItemNotFound,
